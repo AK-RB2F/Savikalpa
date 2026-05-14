@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Campaign Insights Generator — RB2F</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Mono', monospace; background: #0A0E2E; color: #FAF7F2; min-height: 100vh; padding: 32px; }
+  h1 { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 24px; letter-spacing: -0.5px; color: #FAF7F2; margin-bottom: 4px; }
+  .subtitle { font-size: 11px; color: #8D3FD0; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 28px; }
+
+  .drop-zone { border: 1.5px dashed #8D3FD0; border-radius: 12px; padding: 36px 24px; text-align: center; cursor: pointer; transition: all 0.2s; background: rgba(141,63,208,0.05); margin-bottom: 20px; }
+  .drop-zone:hover, .drop-zone.drag-over { border-color: #ED3D63; background: rgba(237,61,99,0.07); }
+  .drop-zone .icon { font-size: 32px; margin-bottom: 10px; }
+  .drop-zone p { font-size: 11px; color: #aaa; margin-top: 6px; }
+  .drop-zone strong { color: #FAF7F2; font-size: 14px; }
+  input[type="file"] { display: none; }
+
+  .manual-section { background: rgba(141,63,208,0.07); border: 1px solid #2a1f4a; border-radius: 10px; padding: 16px 18px; margin-bottom: 16px; display: none; }
+  .manual-section.visible { display: block; }
+  .manual-section > span { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: #8D3FD0; display: block; margin-bottom: 12px; }
+  .manual-row { display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-end; }
+  .manual-field { display: flex; flex-direction: column; gap: 5px; }
+  .manual-field span { font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+  .manual-field input { background: #0A0E2E; border: 1px solid #2a2f5a; border-radius: 6px; color: #FAF7F2; font-family: 'DM Mono', monospace; font-size: 13px; padding: 8px 12px; width: 160px; transition: border 0.15s; }
+  .manual-field input:focus { outline: none; border-color: #ED3D63; }
+  .manual-field input::placeholder { color: #3a3f6a; }
+
+  .action-bar { display: none; margin-bottom: 16px; }
+  .action-bar.visible { display: flex; gap: 12px; align-items: center; }
+  .copy-btn-main { background: #ED3D63; color: #FAF7F2; border: none; border-radius: 8px; padding: 11px 24px; font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 500; cursor: pointer; text-transform: uppercase; letter-spacing: 1.5px; transition: all 0.15s; display: flex; align-items: center; gap: 8px; }
+  .copy-btn-main:hover { background: #c4264e; transform: translateY(-1px); }
+  .copy-btn-main:active { transform: translateY(0); }
+  .copy-btn-main.copied { background: #8D3FD0; }
+  .copy-hint { font-size: 10px; color: #555; }
+
+  .status { font-size: 11px; margin-bottom: 14px; padding: 8px 14px; border-radius: 6px; display: none; }
+  .status.success { background: rgba(141,63,208,0.15); color: #8D3FD0; display: block; }
+  .status.error { background: rgba(237,61,99,0.15); color: #ED3D63; display: block; }
+
+  .output-box { background: #060918; border: 1px solid #1a1f4a; border-radius: 12px; padding: 24px; font-size: 13px; line-height: 2; color: #FAF7F2; min-height: 140px; }
+  .output-placeholder { color: #3a3f6a; font-size: 12px; }
+  .day-block { margin-bottom: 28px; padding-bottom: 28px; border-bottom: 1px solid #1a1f4a; }
+  .day-block:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+  .line { display: block; line-height: 1.85; }
+  .line-header { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 16px; color: #ED3D63; margin-bottom: 2px; }
+  .line-section { color: #8D3FD0; font-size: 10px; text-transform: uppercase; letter-spacing: 1.2px; margin-top: 8px; }
+  .line-total, .line-ads, .line-brand { color: #FAF7F2; }
+  .brand-label { color: #ED3D63; font-weight: 500; }
+  .blank { color: #3a4060; }
+</style>
+</head>
+<body>
+
+<h1>Campaign Insights Generator</h1>
+<div class="subtitle">RB2F · Amazon Ads · Daily Text Report</div>
+
+<div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+  <div class="icon">📂</div>
+  <strong>Drop your CSV / Excel file here</strong>
+  <p>or click to browse &nbsp;·&nbsp; Supports .csv, .xlsx, .xls</p>
+</div>
+<input type="file" id="fileInput" accept=".csv,.xlsx,.xls">
+
+<div class="manual-section" id="manualSection">
+  <span>Overall Performance — Fill Manually</span>
+  <div class="manual-row">
+    <div class="manual-field">
+      <span>Total Orders</span>
+      <input type="text" id="manualUnits" placeholder="e.g. 24">
+    </div>
+    <div class="manual-field">
+      <span>Total Sales</span>
+      <input type="text" id="manualSales" placeholder="e.g. 20,806">
+    </div>
+  </div>
+</div>
+
+<div class="action-bar" id="actionBar">
+  <button class="copy-btn-main" id="copyBtn" onclick="copyText()">
+    <span id="copyIcon">📋</span>
+    <span id="copyLabel">Copy All</span>
+  </button>
+  <span class="copy-hint">Paste directly to WhatsApp, Notion, email — anywhere</span>
+</div>
+
+<div class="status" id="status"></div>
+<div class="output-box" id="output">
+  <span class="output-placeholder">Upload a file to generate insights...</span>
+</div>
+
+<!-- SheetJS CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+  const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const BRANDS = ['Relief','Migraine','Svaha','Period'];
+  const MIN_ORDERS = 2;
+  let _days = null;
+
+  const dropZone   = document.getElementById('dropZone');
+  const fileInput  = document.getElementById('fileInput');
+  const output     = document.getElementById('output');
+  const status     = document.getElementById('status');
+  const actionBar  = document.getElementById('actionBar');
+
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); handleFile(e.dataTransfer.files[0]); });
+  fileInput.addEventListener('change', e => handleFile(e.target.files[0]));
+  document.getElementById('manualUnits').addEventListener('input', render);
+  document.getElementById('manualSales').addEventListener('input', render);
+
+  function showStatus(msg, type) { status.textContent = msg; status.className = 'status ' + type; }
+
+  function handleFile(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const wb = XLSX.read(e.target.result, { type: 'binary' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+        processData(rows);
+      } catch(err) { showStatus('Error reading file: ' + err.message, 'error'); }
+    };
+    reader.readAsBinaryString(file);
+  }
+
+  function extractBrand(name) {
+    const parts = name.split('/');
+    if (parts.length >= 4) {
+      const b = parts[3].trim();
+      if (b.toLowerCase().includes('period') || b.toLowerCase().includes('cramp')) return 'Period';
+      if (b === 'Brand') return 'Relief';
+      return b;
+    }
+    return 'Unknown';
+  }
+
+  function buildLabel(name) {
+    const parts = name.split('/');
+    const adType = parts[1]?.trim() || '';
+    const intent = parts.slice(4).join(' ').trim()
+      .replace(/Intent - /gi, '').replace(/Intent-/gi, '').replace(/\//g, ' · ').trim();
+    return intent ? `${adType} ${intent}` : `${adType} ${parts[2]?.trim() || ''}`;
+  }
+
+  function parseDateStr(str) {
+    str = str.toString().trim();
+    const m = str.match(/^(\w+ \d+, \d{4})/);
+    if (m) { const d = new Date(m[1]); if (!isNaN(d)) return d; }
+    const d = new Date(str); return isNaN(d) ? null : d;
+  }
+
+  function formatDate(d) { return `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`; }
+  function numFmt(n) { return Math.round(n).toLocaleString('en-IN'); }
+
+  function processData(rows) {
+    if (!rows.length) { showStatus('No data found.', 'error'); return; }
+    const keys = Object.keys(rows[0]);
+    const findCol = (...c) => keys.find(k => c.some(x => k.toLowerCase().includes(x.toLowerCase()))) || '';
+
+    const dateCol     = findCol('Date range', 'Date');
+    const campCol     = findCol('Campaign name', 'Campaign');
+    const purchaseCol = findCol('Purchases', 'Orders', 'Units');
+    const salesCol    = findCol('Sales', 'Revenue');
+
+    if (!dateCol || !campCol || !purchaseCol) {
+      showStatus('Could not detect required columns (Date, Campaign name, Purchases). Check your file.', 'error');
+      return;
+    }
+
+    const byDate = {};
+    for (const row of rows) {
+      const rd = row[dateCol]?.toString().trim();
+      if (!rd) continue;
+      if (!byDate[rd]) byDate[rd] = [];
+      byDate[rd].push(row);
+    }
+
+    const sortedDates = Object.keys(byDate).sort((a, b) => {
+      const da = parseDateStr(a), db = parseDateStr(b);
+      return da && db ? da - db : 0;
+    });
+
+    _days = sortedDates.map(rawDate => {
+      const dayRows = byDate[rawDate];
+      const d = parseDateStr(rawDate);
+      const brandData = {};
+      BRANDS.forEach(b => brandData[b] = { orders: 0, campaigns: [] });
+
+      for (const row of dayRows) {
+        const name   = row[campCol]?.toString() || '';
+        const brand  = extractBrand(name);
+        const orders = parseFloat(row[purchaseCol]) || 0;
+        if (!brandData[brand]) brandData[brand] = { orders: 0, campaigns: [] };
+        brandData[brand].orders += orders;
+        if (orders > 0) brandData[brand].campaigns.push({ label: buildLabel(name), orders });
+      }
+
+      return {
+        dayName:  d ? DAYS[d.getDay()] : '',
+        dateStr:  d ? formatDate(d) : rawDate,
+        adOrders: Math.round(dayRows.reduce((s, r) => s + (parseFloat(r[purchaseCol]) || 0), 0)),
+        adSales:  Math.round(dayRows.reduce((s, r) => s + (parseFloat(r[salesCol])    || 0), 0)),
+        brandData
+      };
+    });
+
+    document.getElementById('manualSection').classList.add('visible');
+    actionBar.classList.add('visible');
+    showStatus(`Processed ${sortedDates.length} day(s) · ${rows.length} campaign rows`, 'success');
+    render();
+  }
+
+  function render() {
+    if (!_days) return;
+    const manualUnits = document.getElementById('manualUnits').value.trim() || '___';
+    const manualSales = document.getElementById('manualSales').value.trim() || '___';
+
+    let htmlOut = '';
+    let textOut = '';
+
+    for (const day of _days) {
+      const { dayName, dateStr, adOrders, adSales, brandData } = day;
+
+      const brandLines = {};
+      for (const brand of BRANDS) {
+        const bd    = brandData[brand] || { orders: 0, campaigns: [] };
+        const total = Math.round(bd.orders);
+        const shown = bd.campaigns.filter(c => c.orders >= MIN_ORDERS).sort((a, b) => b.orders - a.orders);
+
+        if (total === 0) {
+          brandLines[brand] = '';
+        } else if (shown.length === 0) {
+          brandLines[brand] = `${total} order${total !== 1 ? 's' : ''} — spread across campaigns`;
+        } else {
+          brandLines[brand] = shown.map(c => `${c.label} gave ${c.orders} order${c.orders !== 1 ? 's' : ''}`).join(' & ');
+        }
+      }
+
+      // HTML
+      let h = `<div class="day-block">`;
+      h += `<span class="line line-header">${dayName} | ${dateStr}</span>`;
+      h += `<span class="line line-section">Overall performance summary:</span>`;
+      h += `<span class="line line-total">Total : ${manualUnits} orders generating sales of ${manualSales}</span>`;
+      h += `<span class="line line-ads">Ads: ${adOrders} orders generating sales of ${numFmt(adSales)}</span>`;
+      h += `<span class="line line-section">Ad insights:</span>`;
+      for (const brand of BRANDS) {
+        h += `<span class="line line-brand"><span class="brand-label">${brand} :-</span>  ${brandLines[brand] || '<span class="blank">—</span>'}</span>`;
+      }
+      h += `</div>`;
+      htmlOut += h;
+
+      // Plain text
+      let t = `${dayName} | ${dateStr}\n`;
+      t += `Overall performance summary:\n`;
+      t += `Total : ${manualUnits} orders generating sales of ${manualSales}\n`;
+      t += `Ads: ${adOrders} orders generating sales of ${numFmt(adSales)}\n`;
+      t += `Ad insights:\n`;
+      for (const brand of BRANDS) {
+        t += `${brand} :- ${brandLines[brand]}\n`;
+      }
+      textOut += t + '\n';
+    }
+
+    output.innerHTML = htmlOut;
+    output._text = textOut;
+  }
+
+  function copyText() {
+    const btn   = document.getElementById('copyBtn');
+    const label = document.getElementById('copyLabel');
+    const icon  = document.getElementById('copyIcon');
+    navigator.clipboard.writeText(output._text || '').then(() => {
+      btn.classList.add('copied');
+      icon.textContent  = '✅';
+      label.textContent = 'Copied!';
+      setTimeout(() => {
+        btn.classList.remove('copied');
+        icon.textContent  = '📋';
+        label.textContent = 'Copy All';
+      }, 2000);
+    }).catch(() => {
+      // Fallback for browsers that block clipboard
+      const ta = document.createElement('textarea');
+      ta.value = output._text || '';
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      label.textContent = 'Copied!';
+      setTimeout(() => { label.textContent = 'Copy All'; }, 2000);
+    });
+  }
+</script>
+</body>
+</html>
